@@ -35,7 +35,6 @@ public class BrowserSecurityController {
     @Autowired
     private SecurityProperties securityProperties;
 
-    @Autowired
     /**
      * 当需要身份认证时，跳转到这里
      *
