@@ -18,6 +18,10 @@ imooc:
     browser:
       loginPage: /login.html
       loginType: JSON
+    code:
+      image:
+#        url: /user, /user/*
+        length: 3
 
 #security:
 #    basic:

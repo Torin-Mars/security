@@ -1,11 +1,13 @@
 package com.imooc.security.core.validate;
 
+import com.imooc.security.core.properties.SecurityProperties;
 import com.imooc.security.core.validate.code.image.ImageCode;
 import com.imooc.security.core.validate.exception.ValidateCodeException;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.social.connect.web.HttpSessionSessionStrategy;
 import org.springframework.social.connect.web.SessionStrategy;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.ServletRequestUtils;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -16,22 +18,50 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by MTL on 2019/6/14
  */
 public class ValidateCodeFilter extends OncePerRequestFilter {
 
+    private SecurityProperties securityProperties;
+    private List<String> urls = new ArrayList<>();
+    private AntPathMatcher pathMatcher = new AntPathMatcher();
+
     private AuthenticationFailureHandler authenticationFailureHandler;
     private SessionStrategy sessionStrategy = new HttpSessionSessionStrategy();
+    private boolean init = false;
+
+    public ValidateCodeFilter() {
+        urls.add("/myLogin");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws IOException, ServletException {
-        if (StringUtils.equals("/myLogin", httpServletRequest.getRequestURI())
-            && StringUtils.endsWithIgnoreCase(httpServletRequest.getMethod(), "post")){
+        if (!init){
+            String[] configUrls = StringUtils.splitByWholeSeparatorPreserveAllTokens(securityProperties
+                    .getCode().getImage().getUrl(), ",");
+            if (configUrls != null){
+                for (String configUrl: configUrls){
+                    urls.add(configUrl);
+                }
+                init = true;
+            }
+        }
+        boolean action = false;
+        for (String url: urls){
+            if (pathMatcher.match(url, httpServletRequest.getRequestURI())){
+                action = true;
+                break;
+            }
+        }
+
+        if (action) {
             try {
                 validate(new ServletWebRequest(httpServletRequest));
-            }catch (ValidateCodeException validateCodeException){
+            } catch (ValidateCodeException validateCodeException) {
                 authenticationFailureHandler.onAuthenticationFailure(httpServletRequest,
                         httpServletResponse, validateCodeException);
                 return;
@@ -72,5 +102,9 @@ public class ValidateCodeFilter extends OncePerRequestFilter {
 
     public void setAuthenticationFailureHandler(AuthenticationFailureHandler authenticationFailureHandler) {
         this.authenticationFailureHandler = authenticationFailureHandler;
+    }
+
+    public void setSecurityProperties(SecurityProperties securityProperties) {
+        this.securityProperties = securityProperties;
     }
 }
